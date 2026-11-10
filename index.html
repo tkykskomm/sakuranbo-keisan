@@ -173,6 +173,11 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
 .cf{position:absolute;top:-30px;width:12px;height:18px;border-radius:3px;animation:fall 1.6s ease-in forwards}
 @keyframes fall{to{transform:translateY(110vh) rotate(720deg)}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+.mode-row{display:flex;gap:calc(var(--s)*4);justify-content:center;flex-wrap:wrap}.mode-card{width:calc(var(--s)*40);padding:calc(var(--s)*3);border:calc(var(--s)*.6) solid white;border-radius:calc(var(--s)*4);background:linear-gradient(#fff3d1,#ffd78c);box-shadow:0 calc(var(--s)*1) 0 #d89752,0 calc(var(--s)*1.5) calc(var(--s)*2) #795d3822;display:flex;flex-direction:column;align-items:center;gap:calc(var(--s)*1)}.mode-card.sub{background:linear-gradient(#e7f8ff,#a3ddfa);box-shadow:0 calc(var(--s)*1) 0 #5badd9}.mode-card>span{font-size:calc(var(--s)*11);color:#ff7196;line-height:1}.mode-card.sub>span{color:#438ac9}.mode-card strong{font-size:calc(var(--s)*6)}.mode-card small{font-size:calc(var(--s)*2.5)}.level-option{width:calc(var(--s)*40);display:flex;flex-direction:column;align-items:center;gap:calc(var(--s)*1)}.level-option img{width:100%}.level-option>span{background:#fffdf3;border-radius:999px;padding:calc(var(--s)*.7) calc(var(--s)*2);font-size:calc(var(--s)*2.8)}.subcalc{position:absolute;left:52%;top:51%;display:flex;align-items:center;gap:calc(var(--s)*1);font-size:calc(var(--s)*4);background:#fff8e9;border-radius:calc(var(--s)*3);padding:calc(var(--s)*2)}.subcalc .ball.C{position:relative;top:auto;width:calc(var(--s)*10);height:calc(var(--s)*10);aspect-ratio:1;background:#ffd3df;border:calc(var(--s)*.4) solid #ed98af}.subcalc .num{font-size:calc(var(--s)*6)}.cell.removed{background:#e7e1df;color:#ab8274;display:grid;place-items:center;font-size:calc(var(--s)*4)}
+@media(orientation:portrait){.mode-row{flex-direction:column}.level-option{width:calc(var(--s)*44)}}
+.level-art{position:relative;display:block;width:100%}.sub-level-label{position:absolute;left:4%;right:4%;top:39%;height:35%;display:flex;align-items:center;justify-content:center;border-radius:999px;background:#ffe4ed;color:#ec4c85;font-size:calc(var(--s)*4.2);white-space:nowrap;text-shadow:2px 2px white,-2px -2px white,2px -2px white,-2px 2px white}.level-option>.level-art{padding:0;background:none}
+#tenOval{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:4;overflow:visible}
 </style>
 </head>
 <body>
@@ -212,13 +217,13 @@ const sYay = () => { tone(784,.14); tone(988,.14,.11); tone(1319,.28,.22); };
 const sClear = () => { [523,659,784,1047].forEach((f,i)=>tone(f,.25,i*.13)); };
 
 // ---------- もんだい ----------
-function makeQs(level){
+function makeQs(level, operation = mode){
   const pool = [];
   for (let a = 2; a <= 9; a++) for (let b = 2; b <= 9; b++){
     if (a + b < 11) continue;
     if (level === 1 && a < 8) continue;
     if (level === 2 && (a < 6 || a > 7)) continue;
-    pool.push({a, b});
+    pool.push(operation === 'sub' ? {a:a+b, b:a} : {a, b});
   }
   for (let i = pool.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
   return pool.slice(0, 10);
@@ -226,7 +231,8 @@ function makeQs(level){
 const cardBg = `style="background-image:url(${IMG.card})"`;
 
 // ---------- がめん ----------
-let run = null, timer = null;
+let run = null, timer = null, mode = 'add';
+const modeLabel = () => mode === 'sub' ? 'ひきざん' : 'たしざん';
 function clearTimers(){ clearTimeout(timer); }
 
 function showTitle(){
@@ -234,23 +240,33 @@ function showTitle(){
   app.innerHTML = `<section class="screen" id="title">
     <img class="title-art" src="${IMG.title}" alt="さくらんぼ けいさん">
     <button class="imgbtn start" id="startBtn"><img src="${IMG.btn_start}" alt="はじめる"></button></section>`;
-  $('#startBtn').onclick = showLevels;
+  $('#startBtn').onclick = showModes;
 }
 
+function showModes(){
+  clearTimers(); run = null;
+  app.innerHTML = `<section class="screen" id="levels">
+    <button class="imgbtn back" id="backBtn"><img src="${IMG.btn_back}" alt="もどる"></button>
+    <div class="coach-big"><img src="${IMG.r_wave}" alt=""><div class="bubble">どっちで あそぶ？</div></div>
+    <div class="mode-row">${[['add','＋','たしざん'],['sub','−','ひきざん']].map(([key,sign,label])=>`<button class="mode-card ${key}" data-mode="${key}"><span>${sign}</span><strong>${label}</strong><small>さくらんぼで れんしゅう</small></button>`).join('')}</div>
+  </section>`;
+  $('#backBtn').onclick=showTitle;
+  app.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{mode=b.dataset.mode;showLevels()});
+}
 function showLevels(){
   clearTimers(); run = null;
   app.innerHTML = `<section class="screen" id="levels">
     <button class="imgbtn back" id="backBtn"><img src="${IMG.btn_back}" alt="もどる"></button>
-    <div class="coach-big"><img src="${IMG.r_wave}" alt=""><div class="bubble">どれに ちょうせん する？</div></div>
-    <div class="level-row">${[1,2,3].map(n => `<button class="imgbtn" data-lv="${n}"><img src="${IMG['level'+n]}" alt="れべる${n}"></button>`).join('')}</div>
+    <div class="coach-big"><img src="${IMG.r_wave}" alt=""><div class="bubble">${modeLabel()}<br>どれに ちょうせん する？</div></div>
+    <div class="level-row">${[1,2,3].map(n => `<button class="level-option" data-lv="${n}"><span class="level-art"><img src="${IMG['level'+n]}" alt="れべる${n}">${mode==='sub'?`<b class="sub-level-label">${n===1?'9と8を ひく':n===2?'7と6を ひく':'ぜんぶの ひきざん'}</b>`:''}</span><span>${n===1 ? (mode==='sub'?'9・8を ひく':'9・8の たしざん') : n===2 ? (mode==='sub'?'7・6を ひく':'7・6の たしざん') : 'ぜんぶから 10もん'}</span></button>`).join('')}</div>
   </section>`;
-  $('#backBtn').onclick = showTitle;
+  $('#backBtn').onclick = showModes;
   app.querySelectorAll('[data-lv]').forEach(b => b.onclick = () => startLevel(+b.dataset.lv));
 }
 
 function startLevel(level){
   clearTimers();
-  run = {level, qs: makeQs(level), i: 0, mistakes: 0, elapsed: 0};
+  run = {level, mode, qs: makeQs(level), i: 0, mistakes: 0, elapsed: 0};
   showQuestion();
 }
 
@@ -267,7 +283,7 @@ function showQuestion(){
           <button class="hintbtn hidden" id="hintBtn"><img src="${IMG.r_idea}" alt="">ヒント</button></div>
         <div class="eq">
           <div class="opw" id="opw0"><button class="card pick" data-op="0" ${cardBg}><span class="num">${q.a}</span></button></div>
-          <span class="op">＋</span>
+          <span class="op">${run.mode==='sub'?'−':'＋'}</span>
           <div class="opw" id="opw1"><button class="card pick" data-op="1" ${cardBg}><span class="num">${q.b}</span></button></div>
           <span class="op">＝</span>
           <div class="card ans" id="ans" ${cardBg}><span class="num q">？</span></div>
@@ -280,7 +296,8 @@ function showQuestion(){
         <button class="imgbtn k ok" data-k="ok"><img src="${IMG.k_ok}" alt="できた"></button>
       </div>
     </div></section>`;
-  say('r_wave', 'わける かずを タッチしてね');
+  say('r_wave', run.mode==='sub' ? `<b>${q.a}</b>を たっぷして 10と のこりに わけよう` : 'わける かずを たっぷしてね');
+  if(run.mode==='sub') { $('[data-op="1"]').disabled=true; $('[data-op="1"]').classList.remove('pick'); }
   $('#backBtn').onclick = askQuit;
   app.querySelectorAll('[data-op]').forEach(b => b.onclick = () => choose(+b.dataset.op));
   $('#hintBtn').onclick = openHint;
@@ -297,6 +314,7 @@ function say(pose, text){
 // わけかた：split=0 → まえの かずを わける、split=1 → うしろの かずを わける
 function info(){
   const {a, b} = run.qs[run.i], s = run.split;
+  if(run.mode==='sub')return {a,b,other:10,splitN:a,pair:a-10,rest:10-b,pairSlot:'R',restSlot:'C'};
   const other = s === 0 ? b : a, splitN = s === 0 ? a : b, pair = 10 - other, rest = splitN - pair;
   // 10を つくる あいての かずに ちかい ほうの まるに pair を いれる
   const pairSlot = s === 0 ? 'R' : 'L', restSlot = pairSlot === 'L' ? 'R' : 'L';
@@ -304,7 +322,7 @@ function info(){
 }
 
 function choose(s){
-  if (run.split !== null) return;
+  if (run.split !== null || (run.mode==='sub' && s!==0)) return;
   run.split = s;
   app.querySelectorAll('[data-op]').forEach(c => c.classList.remove('pick'));
   app.querySelector(`[data-op="${s}"]`).classList.add('chosen');
@@ -314,12 +332,18 @@ function choose(s){
   $('#tray').classList.remove('hidden');
   $('#hintBtn').classList.remove('hidden');
   sPut();
+  if(run.mode==='sub'){
+    $('.ball.L').innerHTML='<span class="num">10</span>';
+    $('#board').insertAdjacentHTML('beforeend',`<div class="subcalc hidden" id="subcalc"><span>10 − ${info().b} ＝</span><div class="ball C" data-slot="C"></div></div>`);
+  }
   setStep(0);
 }
 
 function setStep(step, praise = ''){
   run.step = step;
   const k = info();
+  if(run.mode==='add' && step>0)requestAnimationFrame(drawTenOval);
+  if(run.mode==='sub'){subStep(step,praise);return;}
   app.querySelectorAll('.ball').forEach(b => b.classList.remove('active'));
   if (step === 0){
     $(`.ball.${k.pairSlot}`).classList.add('active');
@@ -337,6 +361,7 @@ function setStep(step, praise = ''){
 
 // ---------- カードを いれる ----------
 function place(n, slot){
+  if(run.mode==='sub')return subPlace(n,slot);
   if (run.locked || (run.step !== 0 && run.step !== 1)) return false;
   const k = info();
   const target = run.step === 0 ? k.pairSlot : k.restSlot;
@@ -361,6 +386,39 @@ function place(n, slot){
   return true;
 }
 function shake(el){ el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake'); }
+
+function drawTenOval(){
+ if(!run || run.mode!=='add' || ![1,2].includes(run.step))return;
+ const board=$('#board'),k=info(),other=$(`#opw${run.split===0?1:0} .num`),pair=$(`.ball.${k.pairSlot} .num`);
+ if(!board||!other||!pair)return;
+ const br=board.getBoundingClientRect(),a=other.getBoundingClientRect(),b=pair.getBoundingClientRect();
+ const ax=a.x+a.width/2-br.x,ay=a.y+a.height/2-br.y,bx=b.x+b.width/2-br.x,by=b.y+b.height/2-br.y;
+ const distance=Math.hypot(bx-ax,by-ay),pad=Math.max(a.width,a.height,b.width,b.height)*.62;
+ let svg=$('#tenOval');if(!svg){svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.id='tenOval';svg.setAttribute('aria-label',`${k.other}と ${k.pair}で 10`);svg.setAttribute('role','img');board.appendChild(svg)}
+ svg.setAttribute('viewBox',`0 0 ${br.width} ${br.height}`);
+ svg.innerHTML=`<ellipse cx="${(ax+bx)/2}" cy="${(ay+by)/2}" rx="${distance/2+pad}" ry="${pad}" transform="rotate(${Math.atan2(by-ay,bx-ax)*180/Math.PI} ${(ax+bx)/2} ${(ay+by)/2})" fill="#ffe77b" fill-opacity=".10" stroke="#e65439" stroke-width="4"/>`;
+}
+window.addEventListener('resize',()=>requestAnimationFrame(drawTenOval));
+function subStep(step,praise=''){
+ const k=info();
+ app.querySelectorAll('.ball').forEach(b=>b.classList.remove('active'));
+ if(step===0){$('.ball.R').classList.add('active');say('r_pencil',`${praise}① <b>${k.a}</b>を <b>10</b>と いくつに わける？<br>かーどを まるに いれよう`)}
+ else if(step===1){$('#subcalc').classList.remove('hidden');$('.ball.C').classList.add('active');say('r_pencil',`${praise}② <b>10</b>から <b>${k.b}</b>を ひくと いくつ？`)}
+ else{$('#pad').classList.remove('off');$('#ans').classList.add('ready');say('r_heart',`③ <b>${k.rest}</b>と <b>${k.pair}</b>で いくつ？<br>ぼたんで こたえよう`)}
+}
+function subPlace(n,slot){
+ if(run.locked || ![0,1].includes(run.step))return false;
+ const k=info(),target=run.step===0?'R':'C',value=run.step===0?k.pair:k.rest,ball=$('.ball.'+target);
+ if(slot!==target){shake(ball);return false}
+ if(n!==value){shake(ball);sNg();say('r_question',run.step===0?`${k.a}は 10と いくつかな？`:`10から ${k.b}を ひいてみよう`);return false}
+ ball.innerHTML=`<span class="num pop">${n}</span>`;ball.classList.remove('active');sPut();setStep(run.step+1,'できたね！ ');return true;
+}
+function subHint(k){
+ const ov=document.createElement('div');ov.className='ov';
+ const cells=Array.from({length:10},(_,i)=>`<div class="cell ${i<k.b?'removed':'b'}">${i<k.b?'×':''}</div>`).join('');
+ ov.innerHTML=`<div class="dlg"><img class="r" src="${IMG.r_idea}" alt=""><h3>${k.a}は 10と ${k.pair}</h3><div class="frames"><div class="fw"><div class="frame">${cells}</div><div class="flabel">10 − ${k.b} ＝ ${k.rest}</div></div><div class="fw"><div class="frame">${Array.from({length:10},(_,i)=>`<div class="cell ${i<k.pair?'o':''}"></div>`).join('')}</div><div class="flabel">のこして おいた ${k.pair}</div></div></div><h3>${k.rest}と ${k.pair}で ${k.a-k.b}</h3><button class="pill g">とじる</button></div>`;
+ ov.querySelector('button').onclick=()=>ov.remove();document.body.appendChild(ov);
+}
 
 // ---------- ドラッグ ----------
 let drag = null;
@@ -428,10 +486,10 @@ function showAnswer(){
 function checkAnswer(){
   if (!run.answer) return;
   const {a, b} = run.qs[run.i], k = info();
-  if (+run.answer !== a + b){
+  if (+run.answer !== (run.mode==='sub'?a-b:a+b)){
     run.mistakes++; sNg(); shake($('#ans'));
     run.answer = ''; showAnswer();
-    say('r_megaphone', `おしい！ <b>10</b>と <b>${k.rest}</b>を あわせて みよう`);
+    say('r_megaphone', run.mode==='sub' ? `おしい！ <b>${k.rest}</b>と <b>${k.pair}</b>を あわせて みよう` : `おしい！ <b>10</b>と <b>${k.rest}</b>を あわせて みよう`);
     return;
   }
   run.locked = true;
@@ -449,6 +507,7 @@ function checkAnswer(){
 function openHint(){
   if (run.split === null) return;
   const k = info();
+  if(run.mode==='sub'){subHint(k);return;}
   const blue = 'b', orange = 'o';
   // まえの かず(a)は あお、うしろの かず(b)は オレンジ
   let f1, f2, lab;
